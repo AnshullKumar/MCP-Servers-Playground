@@ -1,41 +1,47 @@
-import csv
-import os
+import requests
 from datetime import datetime, timedelta
 from fastmcp import FastMCP
 
 # Initialize the server with a name
 mcp = FastMCP("my-first-server")
 
-# --- Load Weather Data ---
-def load_weather_data():
-    """Loads weather data from the CSV file into a dictionary."""
-    data = {}
-    file_path = os.path.join(os.path.dirname(__file__), "weather_data.csv")
-    try:
-        with open(file_path, mode='r', encoding='utf-8') as infile:
-            reader = csv.DictReader(infile)
-            for row in reader:
-                city_name = row["city"].lower()
-                data[city_name] = {
-                    "temp": int(row["temperature"]),
-                    "condition": row["condition"],
-                }
-    except FileNotFoundError:
-        print(f"Warning: Weather data file not found at {file_path}")
-    return data
-
-weather_data = load_weather_data()
-# -------------------------
-
 @mcp.tool
 def get_weather(city: str) -> dict:
-    """Get the current weather for a city from the dataset."""
-    city_lower = city.lower()
-    if city_lower in weather_data:
-        return {"city": city, **weather_data[city_lower]}
-    else:
-        # Return a default response if the city is not found
-        return {"city": city, "error": "Weather data not found for this city."}
+    """Get the current weather for a city using the Open-Meteo API."""
+    try:
+        # Step 1: Get latitude and longitude for the city from Open-Meteo's geocoding API
+        geocoding_url = f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1&language=en&format=json"
+        geo_response = requests.get(geocoding_url)
+        geo_response.raise_for_status()
+        geo_data = geo_response.json()
+
+        if not geo_data.get("results"):
+            return {"error": f"Could not find location data for '{city}'."}
+
+        location = geo_data["results"][0]
+        latitude = location["latitude"]
+        longitude = location["longitude"]
+        
+        # Step 2: Get the current weather using the latitude and longitude
+        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current_weather=true"
+        weather_response = requests.get(weather_url)
+        weather_response.raise_for_status()
+        weather_data = weather_response.json()
+
+        if "current_weather" in weather_data:
+            current_weather = weather_data["current_weather"]
+            return {
+                "city": location.get("name", city),
+                "temperature": f"{current_weather['temperature']}°C",
+                "wind_speed": f"{current_weather['windspeed']} km/h",
+            }
+        else:
+            return {"error": "Could not retrieve current weather data."}
+
+    except requests.exceptions.RequestException as e:
+        return {"error": f"API request failed: {e}"}
+    except Exception as e:
+        return {"error": f"An unexpected error occurred: {e}"}
 
 @mcp.tool
 def get_time(timezone: str = "UTC") -> str:
