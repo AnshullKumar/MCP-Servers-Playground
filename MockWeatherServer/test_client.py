@@ -8,10 +8,7 @@ def print_pretty_result(tool_name: str, result: dict):
         print(f"  Error: {result['error']}")
     else:
         for key, value in result.items():
-            if key == "city" or key == "expression": # Capitalize city and expression for better readability
-                 print(f"  {key.replace('_', ' ').capitalize()}: {value}")
-            else:
-                print(f"  {key.replace('_', ' ').capitalize()}: {value}")
+            print(f"  {key.replace('_', ' ').capitalize()}: {value}")
     print("---------------------------\n")
 
 async def main():
