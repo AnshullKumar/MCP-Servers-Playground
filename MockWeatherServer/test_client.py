@@ -44,7 +44,7 @@ async def main():
 
             elif choice == '2':
                 # --- Get Time ---
-                timezone_input = input("Enter a timezone (e.g., UTC, IST): ")
+                timezone_input = input("Enter a timezone (e.g., America/New_York, Asia/Kolkata, Europe/London): ")
                 if not timezone_input:
                     timezone_input = "UTC" # Default if user enters nothing
                 print(f"Calling get_time for {timezone_input}...")
@@ -52,10 +52,12 @@ async def main():
                     "get_time", 
                     {"timezone": timezone_input}
                 )
-                if call_result.is_error:
-                    print_pretty_result("Get Time", {"error": "Could not retrieve time."})
+                # The get_time tool now always returns a string
+                result_str = call_result.data
+                if result_str.startswith("Error:"):
+                    print_pretty_result("Get Time", {"error": result_str})
                 else:
-                    print_pretty_result("Get Time", {"time": call_result.data})
+                    print_pretty_result("Get Time", {"time": result_str})
 
 
             elif choice == '3':
