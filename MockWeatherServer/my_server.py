@@ -1,5 +1,6 @@
 import requests
 from datetime import datetime, timedelta
+import pytz # Import pytz
 from fastmcp import FastMCP
 
 # Initialize the server with a name
@@ -45,15 +46,23 @@ def get_weather(city: str) -> dict:
 
 @mcp.tool
 def get_time(timezone: str = "UTC") -> str:
-    """Get the current time in a specified timezone. Supports UTC and IST."""
-    now = datetime.utcnow()
-    if timezone.upper() == "IST":
-        # Note: This is a simplified IST calculation (UTC+5:30)
-        now += timedelta(hours=5, minutes=30)
-        return f"Current time (IST): {now.strftime('%H:%M:%S')}"
-    
-    # Default to UTC
-    return f"Current time (UTC): {now.strftime('%H:%M:%S')}"
+    """
+    Get the current time in a specified timezone. Uses pytz for accurate conversion.
+    Returns a formatted time string or an error string if the timezone is invalid.
+    """
+    try:
+        # Get current UTC time
+        utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        
+        # Convert to specified timezone
+        tz = pytz.timezone(timezone)
+        localized_time = utc_now.astimezone(tz)
+        
+        return f"Current time ({timezone}): {localized_time.strftime('%H:%M:%S %Z%z')}"
+    except pytz.exceptions.UnknownTimeZoneError:
+        return f"Error: Unknown timezone '{timezone}'. Please use a valid IANA timezone (e.g., 'America/New_York', 'Asia/Kolkata')."
+    except Exception as e:
+        return f"Error: An unexpected error occurred: {e}"
 
 
 @mcp.tool
